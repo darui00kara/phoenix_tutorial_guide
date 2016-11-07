@@ -289,12 +289,14 @@ $ mix phoenix.server
 <C-c>
 ```
 
-## テストしてみる
+## テストを交える
 
 作ったページのテストを作成してみましょう。
 本来であれば、機能の実装前にテストを作った方が良いですが、
 ちゃんとしたテストサイクルを回すのは次の項目で行います。
 ここではExUnitをお試しで使ってみたいと思います。
+
+### まずはテスト書いてみる
 
 #### File: test/controllers/static_page_controller_test.exs
 
@@ -331,19 +333,237 @@ Finished in 0.1 seconds
 Randomized with seed 560404
 ```
 
-## 少しだけ動的なページ
-
-新しくページを追加しながらテストサイクルを回していきましょう。
+続けて新しくページを追加しながらテストサイクルを回していきましょう。
+テストサイクルについて
 
 ### レッド
 
+まずはテストの作成
+他のページと同じ内容です。
+
+#### File: test/controllers/static_page_controller_test.exs
+
+```elixir
+defmodule SampleApp.StaticPageControllerTest do
+  ...
+
+  test "GET /about", %{conn: conn} do
+    conn = get conn, "/about"
+    assert html_response(conn, 200) =~ "Welcome to Static Pages About!"
+  end
+end
+```
+
+```cmd
+$ mix test
+....
+
+  1) test GET /about (SampleApp.StaticPageControllerTest)
+     test/controllers/static_page_controller_test.exs:14
+     ** (RuntimeError) expected response with status 200, got: 404, with body:
+     Page not found
+     stacktrace:
+       ...   
+
+..
+
+Finished in 0.2 seconds
+7 tests, 1 failure
+
+Randomized with seed 745020
+```
+
 ### グリーン
+
+#### File: web/router.ex
+
+```elixir
+defmodule SampleApp.Router do
+  ...
+
+  scope "/", SampleApp do
+    pipe_through :browser # Use the default browser stack
+
+    get "/", PageController, :index
+    get "/home", StaticPageController, :home
+    get "/help", StaticPageController, :help
+    get "/about", StaticPageController, :about
+  end
+
+  ...
+end
+```
+
+```cmd
+$ mix test
+.....
+
+  1) test GET /about (SampleApp.StaticPageControllerTest)
+     test/controllers/static_page_controller_test.exs:14
+     ** (UndefinedFunctionError) function SampleApp.StaticPageController.about/2 is undefined or private
+     stacktrace:
+       ...
+
+.
+
+Finished in 0.1 seconds
+7 tests, 1 failure
+
+Randomized with seed 565233
+```
+
+アクションを追加しましょう。
+
+#### File: web/controllers/static_page_controller.ex
+
+```elixir
+defmodule SampleApp.StaticPageController do
+  ...
+
+  def about(conn, _params) do
+    render conn, "about.html"
+  end
+end
+```
+
+```cmd
+$ mix test
+....
+
+  1) test GET /about (SampleApp.StaticPageControllerTest)
+     test/controllers/static_page_controller_test.exs:14
+     ** (Phoenix.Template.UndefinedError) Could not render "about.html" for SampleApp.StaticPageView,
+     please define a matching clause for render/2 or define a template at "web/templates/static_page".
+     The following templates were compiled:
+     
+     * help.html
+     * home.html
+     
+     Assigns:
+     
+     %{conn: %Plug.Conn{...}
+     
+     stacktrace:
+       ...
+
+..
+
+Finished in 0.1 seconds
+7 tests, 1 failure
+
+Randomized with seed 1816
+```
+
+#### web/templates/static_page/about.html.eex
+
+```html
+<div class="jumbotron">
+  <h2>Welcome to Static Pages About!</h2>
+</div>
+```
+
+```cmd
+$ mix test
+.......
+
+Finished in 0.1 seconds
+7 tests, 0 failures
+
+Randomized with seed 34167
+```
 
 ### リファクタリング
 
+大いなるコードを書いたわけでも、偉大な機能を実装したわけでもないので、
+ここでは特にリファクタリングをすることはありません。
+しかし、本来であればコードから漂う悪臭を嗅ぎ取り、その悪臭を消さなければいけません。
+
+## 少しだけ動的なページ
+
+```html
+<h2>Welcome to Static Pages Home!</h2>
+
+<h2>Welcome to Static Pages Help!</h2>
+
+<h2>Welcome to Static Pages About!</h2>
+```
+
+#### File: web/controllers/static_page_controller.ex
+
+```elixir
+defmodule SampleApp.StaticPageController do
+  use SampleApp.Web, :controller
+
+  def home(conn, _params) do
+    render conn, "home.html", message: "Home"
+  end
+
+  def help(conn, _params) do
+    render conn, "help.html", message: "Help"
+  end
+
+  def about(conn, _params) do
+    render conn, "about.html", message: "About"
+  end
+end
+```
+
+#### File: web/templates/static_page/home.html.eex
+
+```html
+<div class="jumbotron">
+  <h2>Welcome to Static Pages <%= @message %>!</h2>
+</div>
+```
+
+#### File: web/templates/static_page/help.html.eex
+
+```html
+<div class="jumbotron">
+  <h2>Welcome to Static Pages <%= @message %>!</h2>
+</div>
+```
+
+#### File: web/templates/static_page/about.html.eex
+
+```html
+<div class="jumbotron">
+  <h2>Welcome to Static Pages <%= @message %>!</h2>
+</div>
+```
+
+同じ動作をしているかテストで確認してみましょう。
+
+#### Example:
+
+```cmd
+$ mix test
+.......
+
+Finished in 0.1 seconds
+7 tests, 0 failures
+
+Randomized with seed 258003
+```
+
+自動化テストの恩恵としては微々たるものですが、これがテストを自動化する恩恵ですね。
+
+テストの結果が同一ということは同じ結果が戻ってきているということです。
+ならば、画面上も同じ結果になっているはずですね。
+せっかくなので、Webページの方も確認します。
+
+#### Example:
+
+```cmd
+$ mix phoenix.server
+```
+
+
+さきほど何が起こったのか、説明していきます。
+
+```html
+<%= @param_name %>
+```
+
 ## おわりに
-
-## 参考
-
-
 
