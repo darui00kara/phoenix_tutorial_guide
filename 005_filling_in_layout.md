@@ -267,7 +267,52 @@ p {
 $ mix phoenix.server
 ```
 
+#### URL: http://localhost:4000
+
+BootstrapとjQueryはbrunch-config.jsで統合されている。
+
+#### Example:
+
+```html
+<!--[if lt IE 9]>
+<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+```
+
+#### Example:
+
+```html
+<header class="header navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="logo" href="<%= page_path(@conn, :index) %>"></a>
+      <nav role="navigation">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="<%= static_page_path(@conn, :home) %>">Home</a></li>
+          <li><a href="<%= static_page_path(@conn, :help) %>">Help</a></li>
+          <li><a href="<%= static_page_path(@conn, :about) %>">About</a></li>
+          <li><a href=#>Sign in</a></li>
+          <li><a href="http://www.phoenixframework.org/docs">Get Started</a></li>
+        </ul>
+      </nav>
+    </div> <!-- container -->
+  </div> <!-- navbar-inner -->
+</header>
+```
+
+#### Example:
+
+```html
+<%= render @view_module, @view_template, assigns %>
+```
+
 ## リンクとパスヘルパー
+
+#### Example:
+
+```elixir
+<%= static_pages_path(@conn, :home) %>
+```
 
 ## レンダリングチェイン
 
