@@ -314,6 +314,37 @@ BootstrapとjQueryはbrunch-config.jsで統合されている。
 <%= static_pages_path(@conn, :home) %>
 ```
 
+#### Example:
+
+```html
+<%= if true do %>
+  <p>trueだよ</p>
+<% else %>
+  <p>falseだよ</p>>
+<% end %>
+```
+
+#### Example:
+
+```cmd
+$ mix phoenix.routes
+       page_path  GET  /       SampleApp.PageController :index
+static_page_path  GET  /home   SampleApp.StaticPageController :home
+...
+```
+
+#### Example:
+
+```html
+<li><a href="<%= static_pages_path(@conn, :home) %>">Home</a></li>
+```
+
+#### Example:
+
+```html
+<li><%= link "Home", to: static_pages_path(@conn, :home) %></li>
+```
+
 ## レンダリングチェイン
 
 ## Contactページの追加
