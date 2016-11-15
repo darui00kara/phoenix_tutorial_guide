@@ -140,10 +140,17 @@ jQueryの読み込みに成功していればダイアログが表示されま�
 
 $icon-font-path: "/font/";
 @import "bootstrap";
-@import "custom";
+@import "custom/custom";
 ```
 
-#### web/static/css/custom.scss
+#### web/static/css/custom/custom.scss
+
+```css
+/* custom main scss */
+@import "base";
+```
+
+#### web/static/css/custom/_base.scss
 
 ```css
 /* universal */
@@ -199,6 +206,66 @@ p {
 ```
 
 ## レイアウトテンプレート
+
+#### web/templates/layout/app.html.eex
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Hello SampleApp!</title>
+    <link rel="stylesheet" href="<%= static_path(@conn, "/css/app.css") %>">
+    
+    <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+    <header class="header navbar navbar-inverse">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="logo" href="<%= page_path(@conn, :index) %>"></a>
+          <nav role="navigation">
+            <ul class="nav nav-pills pull-right">
+              <li><a href="<%= static_page_path(@conn, :home) %>">Home</a></li>
+              <li><a href="<%= static_page_path(@conn, :help) %>">Help</a></li>
+              <li><a href="<%= static_page_path(@conn, :about) %>">About</a></li>
+              <li><a href=#>Sign in</a></li>
+              <li><a href="http://www.phoenixframework.org/docs">Get Started</a></li>
+            </ul>
+          </nav>
+        </div> <!-- container -->
+      </div> <!-- navbar-inner -->
+    </header>
+
+    <div class="container">
+      <h2>
+        <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
+        <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
+      </h2>
+
+      <main role="main">
+        <%= render @view_module, @view_template, assigns %>
+      </main>
+    </div> <!-- /container -->
+
+    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+  </body>
+</html>
+```
+
+#### Example:
+
+```cmd
+$ mix phoenix.server
+```
 
 ## リンクとパスヘルパー
 
