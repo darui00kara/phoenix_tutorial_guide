@@ -548,9 +548,7 @@ end
 </footer>
 ```
 
-## サインアップへの仕込み
-
-## SCSS
+## SCSSの記述へ
 
 SCSSファイルの内容をCSS形式で記述している。
 せっかくSCSSを使用しているのにもったいないので記述を修正する。
@@ -683,8 +681,47 @@ footer {
 }
 ```
 
+## サインアップへの仕込み
+
+#### File: web/templates/static_page/home.html.eex
+
+```html
+<div class="jumbotron">
+  <h1>Welcome to the Sample App</h1>
+
+  <h2>
+    This application is
+    <a href="http://railstutorial.jp/">Ruby on Rails Tutorial</a>
+    for Phoenix sample application.
+  </h2>
+
+  <a href="#" class="btn btn-large btn-primary">Sign up now!</a>
+</div>
+```
+
+#### File: web/controllers/static_page_controller.ex
+
+```elixir
+defmodule SampleApp.StaticPageController do
+  ...
+
+  def home(conn, _params) do
+    render conn, "home.html"
+  end
+
+  ...
+end
+```
+
 ## おわりに
 
+#### Example:
 
+```cmd
+$ git add -A
+$ git commit -m "Finish filling_in_layout"
+$ git checkout master
+$ git merge filling_in_layout
+```
 
 
