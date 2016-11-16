@@ -311,7 +311,7 @@ BootstrapとjQueryはbrunch-config.jsで統合されている。
 #### Example:
 
 ```elixir
-<%= static_pages_path(@conn, :home) %>
+<%= static_page_path(@conn, :home) %>
 ```
 
 #### Example:
@@ -336,20 +336,352 @@ static_page_path  GET  /home   SampleApp.StaticPageController :home
 #### Example:
 
 ```html
-<li><a href="<%= static_pages_path(@conn, :home) %>">Home</a></li>
+<li><a href="<%= static_page_path(@conn, :home) %>">Home</a></li>
 ```
 
 #### Example:
 
 ```html
-<li><%= link "Home", to: static_pages_path(@conn, :home) %></li>
+<li><%= link "Home", to: static_page_path(@conn, :home) %></li>
 ```
 
 ## レンダリングチェイン
 
+#### File: web/templates/layout/app.html.eex
+
+```elixir
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Hello SampleApp!</title>
+    <link rel="stylesheet" href="<%= static_path(@conn, "/css/app.css") %>">
+
+    <%= render "shim.html" %>
+  </head>
+
+  <body>
+    <%= render "header.html", conn: @conn %>
+
+    <div class="container">
+      <h2>
+        <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
+        <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
+      </h2>
+
+      <main role="main">
+        <%= render @view_module, @view_template, assigns %>
+      </main>
+
+      <%= render "footer.html", conn: @conn %>
+    </div> <!-- /container -->
+
+    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+  </body>
+</html>
+```
+
+#### Example:
+
+```elixir
+<%= render "テンプレート名", 引数 %>
+```
+
+#### Example:
+
+```elixir
+<%= render "shim.html" %>
+<%= render "header.html", conn: @conn %>
+<%= render "footer.html", conn: @conn %>
+```
+
+#### File: web/templates/layout/shim.html.eex
+
+```html
+<!--[if lt IE 9]>
+<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+```
+
+#### File: web/templates/layout/header.html.eex
+
+```html
+<header class="header navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="logo" href="<%= page_path(@conn, :index) %>"></a>
+      <nav role="navigation">
+        <ul class="nav nav-pills pull-right">
+          <li><%= link "Home", to: static_page_path(@conn, :home) %></li>
+          <li><%= link "Help", to: static_page_path(@conn, :help) %></li>
+          <li><a href=#>Sign in</a></li>
+        </ul>
+      </nav>
+    </div> <!-- container -->
+  </div> <!-- navbar-inner -->
+</header>
+```
+
+#### File: web/templates/layout/footer.html.eex
+
+```html
+<footer class="footer">
+  <nav>
+    <ul>
+      <li><%= link "About", to: static_page_path(@conn, :about) %></li>
+      <li><a href="http://www.phoenixframework.org/docs">Phoenix Get Started</a></li>
+    </ul>
+  </nav>
+</footer>
+```
+
+#### File: web/static/css/custom/_header.scss
+
+```css
+/* header */
+#logo {
+  float: left;
+  margin-right: 10px;
+  font-size: 1.7em;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: -1px;
+  padding-top: 9px;
+  font-weight: bold;
+}
+
+#logo:hover {
+  color: #ffffff;
+  text-decoration: none;
+}
+```
+
+#### File: web/static/css/custom/_header.scss
+
+```css
+/* footer */
+footer {
+  margin-top: 45px;
+  padding-top: 5px;
+  border-top: 1px solid #eaeaea;
+  color: #777777;
+}
+
+footer a {
+  color: #555555;
+}
+
+footer a:hover {
+  color: #222222;
+}
+
+footer small {
+  float: left;
+}
+
+footer ul {
+  float: right;
+  list-style: none;
+}
+
+footer ul li {
+  float: left;
+  margin-left: 15px;
+}
+```
+
 ## Contactページの追加
 
+#### File: web/router.ex
+
+```elixir
+defmodule SampleApp.Router do
+  ...
+
+  scope "/", SampleApp do
+    pipe_through :browser # Use the default browser stack
+
+    ...
+    get "/contact", StaticPageController, :contact
+  end
+
+  ...
+end
+```
+
+#### File: web/controllers/static_page_controller.ex
+
+```elixir
+defmodule SampleApp.StaticPageController do
+  ...
+
+  def contact(conn, _params) do
+    render conn, "contact.html"
+  end
+end
+```
+
+#### File: web/templates/static_page/contact.html.eex
+
+```html
+<div class="jumbotron">
+  <h1>Contact</h1>
+</div>
+```
+
+#### File: web/templates/layout/footer.html.eex
+
+```html
+<footer class="footer">
+  <nav>
+    <ul>
+      <li><%= link "About", to: static_page_path(@conn, :about) %></li>
+      <li><%= link "Contact", to: static_page_path(@conn, :contact) %></li>
+      <li><a href="http://www.phoenixframework.org/docs">Phoenix Get Started</a></li>
+    </ul>
+  </nav>
+</footer>
+```
+
 ## サインアップへの仕込み
+
+## SCSS
+
+SCSSファイルの内容をCSS形式で記述している。
+せっかくSCSSを使用しているのにもったいないので記述を修正する。
+
+#### File: web/static/css/custom/custom.scss
+
+```css
+/* custom main scss */
+
+@import "mixins";
+@import "base";
+@import "header";
+@import "footer";
+```
+
+#### File: web/static/css/custom/_mixins.scss
+
+```css
+/* mixins */
+
+$grayMediumLight: #eaeaea;
+$grayLight: #999;
+```
+
+#### File: web/static/css/custom/_base.scss
+
+```css
+/* universal */
+
+html {
+  overflow-y: scroll;
+}
+
+body {
+  padding-top: 60px;
+}
+
+section {
+  overflow: auto;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.center {
+  text-align: center;
+  h1 {
+    margin-bottom: 10px;
+  }
+}
+
+/* typography */
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1;
+}
+
+h1 {
+  font-size: 3em;
+  letter-spacing: -2px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 1.2em;
+  letter-spacing: -1px;
+  margin-bottom: 30px;
+  text-align: center;
+  font-weight: normal;
+  color: $grayLight;
+}
+
+p {
+  font-size: 1.1em;
+  line-height: 1.7em;
+}
+```
+
+#### File: web/static/css/custom/_header.scss
+
+```css
+/* header */
+
+#logo {
+  float: left;
+  margin-right: 10px;
+  font-size: 1.7em;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: -1px;
+  padding-top: 9px;
+  font-weight: bold;
+  line-height: 1;
+  &:hover {
+    color: white;
+    text-decoration: none;
+  }
+}
+```
+
+#### File: web/static/css/custom/_footer.scss
+
+```css
+/* footer */
+
+footer {
+  margin-top: 45px;
+  padding-top: 5px;
+  border-top: 1px solid $grayMediumLight;
+  color: $grayLight;
+  a {
+    color: $gray;
+    &:hover { 
+      color: $grayDarker;
+    }
+  }  
+  small { 
+    float: left; 
+  }
+  ul {
+    float: right;
+    list-style: none;
+    li {
+      float: left;
+      margin-left: 10px;
+    }
+  }
+}
+```
 
 ## おわりに
 
