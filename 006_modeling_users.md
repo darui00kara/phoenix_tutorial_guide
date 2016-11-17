@@ -136,6 +136,63 @@ create unique_index :users, [:email], concurrently: true
 
 ## ユーザ
 
+#### File: web/router.ex
+
+```elixir
+defmodule SampleApp.Router do
+  ...
+
+  scope "/", SampleApp do
+    ...
+
+    get "/signup", UserController, :new
+  end
+
+  ...
+end
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  use SampleApp.Web, :controller
+
+  def new(conn, _params) do
+    render conn, "new.html"
+  end
+end
+```
+
+#### File: web/views/user_view.ex
+
+```elixir
+defmodule SampleApp.UserView do
+  use SampleApp.Web, :view
+end
+```
+
+#### Directory: web/templates/user
+
+#### File: web/templates/user/new.html.eex
+
+```html
+<div class="jumbotron">
+  <h1>Sign up</h1>
+  <p>Find me in web/templates/user/new.html.eex</p>
+</div>
+```
+
+#### File: web/templates/static_page/home.html.eex
+
+```html
+<div class="jumbotron">
+  ...
+
+  <%= link "Sign up now!", to: user_path(@conn, :new), class: "btn btn-large btn-primary" %>
+</div>
+```
+
 ## バリデーション
 
 ## パスワードカラムの追加
