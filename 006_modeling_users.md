@@ -216,11 +216,182 @@ end
 
 ## パスワードカラムの追加
 
+- 追加のデータモデル
+  * 対象モデル名: User
+  * 対象テーブル名: users
+  * 追加カラム(カラム名:型(オプション)): password:string(virtual)、password_digest:string
+
+#### Example:
+
+```cmd
+$ mix ecto.gen.migration add_password_clumn_to_users
+```
+
+#### File: priv/repo/migrations/[timestamp]_add_password_clumn_to_users
+
+```elixir
+defmodule SampleApp.Repo.Migrations.AddPasswordClumnToUsers do
+  use Ecto.Migration
+
+  def change do
+    alter table(:users) do
+      add :password, :string
+      add :password_digest, :string, null: false
+    end
+  end
+end
+```
+
+#### Example:
+
+```cmd
+$ mix ecto.migrate
+```
+
+#### File: web/models/user.ex
+
+```elixir
+defmodule SampleApp.User do
+  use SampleApp.Web, :model
+
+  schema "users" do
+    ...
+
+    field :password, :string, virtual: true
+    field :password_digest, :string
+
+    timestamps()
+  end
+
+  @doc """
+  Builds a changeset based on the `struct` and `params`.
+  """
+  def changeset(struct, params \\ %{}) do
+    struct
+    |> cast(params, [:name, :email, :password, :password_digest])
+    |> validate_required([:name, :email, :password])
+    |> ...
+  end
+end
+```
+
 ## パスワードの暗号化
 
 他のライブラリを導入しパスワードの暗号化を行ってみましょう。
+riverrun/comeonin
+
+#### File: mix.exs
+
+```elixir
+defmodule SampleApp.Mixfile do
+  ...
+
+  def application do
+    [mod: {SampleApp, []},
+     applications: [:phoenix, :phoenix_pubsub, :phoenix_html, :cowboy, :logger, :gettext,
+                    :phoenix_ecto, :postgrex, :comeonin]]
+  end
+
+  ...
+
+  defp deps do
+    [{:phoenix, "~> 1.2.1"},
+     {:phoenix_pubsub, "~> 1.0"},
+     {:phoenix_ecto, "~> 3.0"},
+     {:postgrex, ">= 0.0.0"},
+     {:phoenix_html, "~> 2.6"},
+     {:phoenix_live_reload, "~> 1.0", only: :dev},
+     {:gettext, "~> 0.11"},
+     {:cowboy, "~> 1.0"},
+     {:floki, "~> 0.11.0"},
+     {:comeonin, "~> 2.5"}]
+  end
+
+  ...
+end
+```
+
+#### Example:
+
+```cmd
+$ mix deps.get
+$ mix compile
+```
+
+#### Note: Comeoninのオプション設定について
+
+テスト時に速度を落とさないためラウンドの数を減らすように設定することができます。
+設定をしなくても動くんで大丈夫です。設定したい方だけ設定してください。
+
+```elixir
+file: config/test.exs
+
+# Configure comeonin option
+config :comeonin, :bcrypt_log_rounds, 4
+config :comeonin, :pdkdf2_rounds, 1
+```
+
+#### File: lib/helpers/encryption.ex
+
+```elixir
+defmodule SampleApp.Helpers.Encryption do
+  import Comeonin.Bcrypt
+
+  def encrypt(password) do
+    hashpwsalt(password)
+  end
+
+  def check_password(password, password_digest) do
+    checkpw(password, password_digest)
+  end
+end
+```
+
+#### File: web/models/user.ex
+
+```elixir
+defmodule SampleApp.User do
+  ...
+
+  @doc """
+  Using Ecto.Multi.run/3 before insert function.
+  """
+  def set_password_digest(changeset) do
+    case Ecto.Changeset.get_change changeset, :password do
+      nil ->
+        {:error, changeset}
+      _ ->
+        password_digest = get_field(changeset, :password) |> Encryption.encrypt
+        change(changeset, %{password_digest: password_digest})
+        {:ok, changeset}
+    end
+  end
+end
+```
+
+Callbacksは廃止されたためもうないんです。(バイバイCallbacks!!)
+Ecto.Multiを使ってDBへの操作前に上記の関数を実行させます。
 
 ## パスワードへのバリデーション
+
+#### File: web/models/user.ex
+
+```elixir
+defmodule SampleApp.User do
+  ...
+
+  def changeset(struct, params \\ %{}) do
+    struct
+    |> cast(params, [:name, :email, :password, :password_digest])
+    |> validate_required([:name, :email, :password])
+    ...
+    |> validate_length(:password, min: 8)
+    |> validate_length(:password, max: 72)
+  end
+
+  ...
+end
+```
 
 ## おわりに
 
