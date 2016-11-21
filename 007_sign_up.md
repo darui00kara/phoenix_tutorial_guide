@@ -192,6 +192,15 @@ end
 }
 ```
 
+#### File: web/static/css/custom/custom.scss
+
+```css
+/* custom main scss */
+
+...
+import "gravatar";
+```
+
 ## サイドバー
 
 #### File: web/templates/user/show.html.eex
