@@ -4,8 +4,8 @@
 
 この章で学べること...
 
-- 一番簡単のユーザ認証のやり方
-- Ectoを使ったデータのインサートと取得の方法
+- サインアップ機能の作り方
+- ユーザの表示機能の作り方
 - Gravatar画像を使う方法
 
 ## 概要
@@ -71,6 +71,10 @@ new、index、edit、show、crate、update、deleteになります。
 
 ```elixir
 defmodule SampleApp.UserController do
+  use SampleApp.Web, :controller
+
+  alias SampleApp.User
+
   ...
 
   def show(conn, %{"id" => id}) do
@@ -95,7 +99,6 @@ end
 $ iex -S mix
 
 iex> alias SampleApp.{Repo, User}
-[SampleApp.Repo, SampleApp.User]
 iex> params = %{name: "hoge", email: "hoge@test.com", password: "hogehoge"}
 iex> changeset = User.changeset(%User{}, params)
 iex> changeset.valid?
@@ -122,9 +125,136 @@ seeds.exsを利用してもよい。
 
 ## Gravatar画像
 
+#### File: lib/helpers/gravatar.ex
+
+```elixir
+defmodule SampleApp.Helpers.Gravatar do
+  def get_gravatar_url(email, size) do
+    gravatar_id = email_to_gravator_id(email)
+    "https://secure.gravatar.com/avatar/#{gravatar_id}?s=#{size}"
+  end
+
+  defp email_to_gravator_id(email) do
+    email |> email_downcase |> email_crypt_md5
+  end
+
+  defp email_crypt_md5(email) do
+    :erlang.md5(email)
+    |> :erlang.bitstring_to_list
+    |> Enum.map(&(:io_lib.format("~2.16.0b", [&1])))
+    |> List.flatten
+    |> :erlang.list_to_bitstring
+  end
+
+  defp email_downcase(email) do
+    String.downcase(email)
+  end
+end
+```
+
+#### File: web/views/user_view.ex
+
+```elixir
+defmodule SampleApp.UserView do
+  use SampleApp.Web, :view
+
+  alias SampleApp.User
+  alias SampleApp.Helpers.Gravatar
+
+  def gravatar_for(%User{email: email}) do
+    Gravatar.get_gravatar_url(email, 50)
+  end
+end
+```
+
+#### File: web/templates/user/show.html.eex
+
+```elixir
+<div class="jumbotron">
+  <img src="<%= gravatar_for(@user) %>" class="gravatar">
+  <strong>Name:</strong><%= @user.name %>
+  <strong>Email:</strong><%= @user.email %>
+</div>
+```
+
+#### File: web/static/css/custom/_gravatar.scss
+
+```css
+/* gravatar */
+
+.gravatar {
+  float: left;
+  margin-right: 10px;
+}
+
+.gravatar_edit {
+  margin-top: 15px;
+}
+```
+
 ## サイドバー
 
+#### File: web/templates/user/show.html.eex
+
+```elixir
+
+```
+
+#### File: web/static/css/custom/_sidebar.scss
+
+```css
+
+```
+
 ## ユーザのサインアップ
+
+#### File: web/templates/user/new.html.eex
+
+```html
+
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+
+```
+
+#### web/model/user.ex
+
+```elixir
+
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+
+```
+
+#### File: web/templates/user/new.html.eex
+
+```html
+
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+
+```
+
+#### Note:
+
+```txt
+phoenix_html, form_for/4
+```
 
 ## おわりに
 
