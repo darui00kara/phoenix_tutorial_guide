@@ -338,6 +338,109 @@ phoenix_html, form_for/4
 言いたいことは一つだけスマートに書けるようになるから素晴らしい！
 ```
 
+## おまけ
+
+#### File: web/web.ex
+
+```elixir
+def view do
+  quote do
+    ...
+
+    # Import convenience functions from controllers
+    import Phoenix.Controller, only: [get_csrf_token: 0, get_flash: 2, view_module: 1,
+                                      action_name: 1, controller_module: 1]
+
+    ...
+  end
+end
+```
+
+#### File: web/template/layout/app.html.eex
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  ...
+
+  <body>
+    <%= render "header.html", conn: @conn %>
+
+    <div class="container">
+      ...
+
+      <%= render "debug.html", conn: @conn %>
+    </div> <!-- /container -->
+
+    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+  </body>
+</html>
+```
+
+#### File: web/views/layout_view.ex
+
+```elixir
+defmodule SampleApp.LayoutView do
+  use SampleApp.Web, :view
+
+  def get_controller_name(conn), do: controller_module(conn)
+  def get_action_name(conn), do: action_name(conn)
+end
+```
+
+#### File: web/templates/layout/debug.html.eex
+
+```html
+<div class="debug_dump">
+  <p>Controller: <%= get_controller_name @conn %></p>
+  <p>Action: <%= get_action_name @conn %></p>
+</div>
+```
+
+#### File: web/static/css/custom/_mixins.scss
+
+```css
+/* mixins */
+
+...
+
+@mixin box_sizing {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+```
+
+#### File: web/static/css/custom/_debug.scss
+
+```css
+/* miscellaneous */
+
+.debug_dump {
+  clear: both;
+  float: left;
+  width: 100%;
+  margin-top: 45px;
+  color: inherit;
+  background-color: #eee;
+  @include box_sizing;
+  p {
+    margin-bottom: 1px;
+    font-size: 15px;
+    font-weight: 200;
+  }
+}
+```
+
+#### File: web/static/css/custom/custom.scss
+
+```css
+/* custom main scss */
+
+...
+@import "debug";
+```
+
 ## おわりに
 
 #### Example:
