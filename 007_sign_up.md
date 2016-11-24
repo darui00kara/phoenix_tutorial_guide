@@ -206,13 +206,45 @@ import "gravatar";
 #### File: web/templates/user/show.html.eex
 
 ```elixir
-
+<div class="row">
+  <aside class="col-md-4">
+    <section>
+      <h1>
+        <img src="<%= gravatar_for(@user) %>" class="gravatar">
+        <%= @user.name %>
+      </h1>
+    </section>
+  </aside>
+</div>
 ```
 
 #### File: web/static/css/custom/_sidebar.scss
 
 ```css
+/* sidebar */
 
+aside {
+  section {
+    padding: 10px 0;
+    border-top: 1px solid #eeeeee;
+    &:first-child {
+      border: 0;
+      padding-top: 0;
+    }
+    span {
+      display: block;
+      margin-bottom: 3px;
+      line-height: 1;
+    }
+    h1 {
+      font-size: 1.4em;
+      text-align: left;
+      letter-spacing: -1px;
+      margin-bottom: 3px;
+      margin-top: 0px;
+    }
+  }
+}
 ```
 
 ## ユーザのサインアップ
@@ -220,7 +252,29 @@ import "gravatar";
 #### File: web/templates/user/new.html.eex
 
 ```html
+<%= form_for @changeset, user_path(@conn, :create), fn f -> %>
+  <%= if @changeset.action do %>
+    <div class="alert alert-danger">
+      <p>Oops, something went wrong! Please check the errors below.</p>
+    </div>
+  <% end %>
 
+  <div class="form-group">
+    <%= label f, :name, class: "control-label" %>
+    <%= text_input f, :name, class: "form-control" %>
+    <%= error_tag f, :name %>
+  </div>
+
+  <div class="form-group">
+    <%= label f, :email, class: "control-label" %>
+    <%= text_input f, :email, class: "form-control" %>
+    <%= error_tag f, :email %>
+  </div>
+
+  <div class="form-group">
+    <%= submit "Sign-up", class: "btn btn-primary" %>
+  </div>
+<% end %>
 ```
 
 #### File: web/controllers/user_controller.ex
@@ -238,7 +292,16 @@ import "gravatar";
 #### File: web/controllers/user_controller.ex
 
 ```elixir
+defmodule SampleApp.UserController do
+  ...
 
+  def new(conn, _params) do
+    changeset = User.changeset(%User{})
+    render(conn, "new.html", changeset: changeset)
+  end
+
+  ...
+end
 ```
 
 #### File: web/controllers/user_controller.ex
