@@ -272,22 +272,24 @@ aside {
   </div>
 
   <div class="form-group">
+    <%= label f, :password, class: "control-label" %>
+    <%= text_input f, :password, class: "form-control" %>
+    <%= error_tag f, :password %>
+  </div>
+
+  <div class="form-group">
     <%= submit "Sign-up", class: "btn btn-primary" %>
   </div>
 <% end %>
 ```
 
-#### File: web/controllers/user_controller.ex
+不正入力の場合の説明。
+Changesetの:errorsからerror_tagへ出力してくれる。
+:errorsにはchangeset/2ないしインサートでエラーになった場合に発生。
+かつメッセージが格納されているため、どのバリデーションで起きたエラーなのかわかる。
+だから以前のもっさりとした内容を書かなくてよくなった。
 
-```elixir
-
-```
-
-#### web/model/user.ex
-
-```elixir
-
-```
+Memo: 後でエラー部分だけ別にしたほうがいいかも
 
 #### File: web/controllers/user_controller.ex
 
@@ -299,33 +301,41 @@ defmodule SampleApp.UserController do
     changeset = User.changeset(%User{})
     render(conn, "new.html", changeset: changeset)
   end
-
-  ...
 end
 ```
 
-#### File: web/controllers/user_controller.ex
-
-```elixir
-
-```
-
-#### File: web/templates/user/new.html.eex
-
-```html
-
-```
+サインアップ画面の確認
 
 #### File: web/controllers/user_controller.ex
 
 ```elixir
+defmodule SampleApp.UserController do
+  ...
 
+  def create(conn, %{"user" => user_params}) do
+    changeset = User.changeset(%User{}, user_params)
+
+    case Repo.insert(changeset) do
+      {:ok, _user} ->
+        conn
+        |> put_flash(:info, "User created successfully.")
+        |> redirect(to: user_path(conn, :home))
+      {:error, changeset} ->
+        render(conn, "new.html", changeset: changeset)
+    end
+  end
+end
 ```
+
+Memo: インサートのエラー処理を別に実装した方がいい。(説明上)
+Memo: changeset.valid?がいらなくなった。書かなくてもいいかな・・・
 
 #### Note:
 
 ```txt
 phoenix_html, form_for/4
+
+言いたいことは一つだけスマートに書けるようになるから素晴らしい！
 ```
 
 ## おわりに
