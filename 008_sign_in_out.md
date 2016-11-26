@@ -89,16 +89,20 @@ end
 
 ## 認証
 
-#### File: web/models/user.ex
-
-```elixir
-
-```
-
 #### File: lib/helpers/authentication.ex
 
 ```elixir
+defmodule SampleApp.Authentication do
+  alias SampleApp.Helpers.Encryption
 
+  def authentication(user, password) do
+    case user do
+      nil -> false
+        _ ->
+          Encryption.check_password(password, user.password_digest)
+    end
+  end
+end
 ```
 
 ## サインイン
@@ -106,13 +110,45 @@ end
 #### File: lib/helpers/signin.ex
 
 ```elixir
+defmodule SampleApp.Signin do
+  import SampleApp.Authentication
 
+  alias SampleApp.User
+
+  def signin(user, password) do
+    case authentication(user, password) do
+      true -> {:ok, user}
+         _ -> :error
+    end
+  end
+end
 ```
 
 #### File: web/controllers/session_controller.ex
 
 ```elixir
+defmodule SampleApp.SessionController do
+  use SampleApp.Web, :controller
 
+  alias SampleApp.User
+
+  ...
+
+  def create(conn, %{"signin_params" => %{"email" => email, "password" => password}}) do
+    case Repo.get_by(User, email: email) |> signin(password) do
+      {:ok, user} ->
+        conn
+        |> put_flash(:info, "User signin is success!")
+        |> redirect(to: static_page_path(conn, :home))
+      :error ->
+        conn
+        |> put_flash(:error, "User signin is failed! email or password is incorrect.")
+        |> redirect(to: session_path(conn, :new))
+    end
+  end
+
+  ...
+end
 ```
 
 ## サインインのフォーム
@@ -120,7 +156,29 @@ end
 #### File: web/templates/session/signin.html.eex
 
 ```html
+<%= form_for @conn, session_path(@conn, :create), [as: :signin_params], fn f -> %>
+  <%= if f.errors != [] do %>
+    <div class="alert alert-danger">
+      <p>Oops, something went wrong! Please check the errors below.</p>
+    </div>
+  <% end %>
 
+  <div class="form-group">
+    <%= label f, :email, class: "control-label" %>
+    <%= text_input f, :email, class: "form-control" %>
+    <%= error_tag f, :email %>
+  </div>
+
+  <div class="form-group">
+    <%= label f, :password, class: "control-label" %>
+    <%= text_input f, :password, class: "form-control" %>
+    <%= error_tag f, :password %>
+  </div>
+
+  <div class="form-group">
+    <%= submit "Signin", class: "btn btn-primary" %>
+  </div>
+<% end %>
 ```
 
 ## サインインのリンク
@@ -128,12 +186,25 @@ end
 #### File: web/templates/layout/app.html.eex
 
 ```html
-
+<header class="header navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="logo" href="<%= page_path(@conn, :index) %>"></a>
+      <nav role="navigation">
+        <ul class="nav nav-pills pull-right">
+          <li><%= link "Home", to: static_page_path(@conn, :home) %></li>
+          <li><%= link "Help", to: static_page_path(@conn, :help) %></li>
+          <li><%= link "Signin", to: session_path(@conn, :new) %></li>
+        </ul>
+      </nav>
+    </div> <!-- container -->
+  </div> <!-- navbar-inner -->
+</header>
 ```
 
 ## セッションはどのように？
 
-#### File: config/config.ex
+#### File: config/config.exs
 
 ```elixir
 
