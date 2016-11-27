@@ -207,19 +207,50 @@ end
 #### File: config/config.exs
 
 ```elixir
+...
 
+# Configures the endpoint
+config :sample_app, SampleApp.Endpoint,
+  url: [host: "localhost"],
+  secret_key_base: "****",
+  render_errors: [view: SampleApp.ErrorView, accepts: ~w(html json)],
+  pubsub: [name: SampleApp.PubSub,
+           adapter: Phoenix.PubSub.PG2]
+
+...
 ```
 
 #### File: lib/[app_name]/endpoint.ex
 
 ```elixir
+defmodule SampleApp.Endpoint do
+  ...
 
+  # The session will be stored in the cookie and signed,
+  # this means its contents can be read but not tampered with.
+  # Set :encryption_salt if you would also like to encrypt it.
+  plug Plug.Session,
+    store: :cookie,
+    key: "_sample_app_key",
+    signing_salt: "nMpjG932"
+
+  ...
+end
 ```
 
 #### Example:
 
 ```elixir
+defmodule HelloPhoenix.SessionExampleController do
+  use HelloPhoenix.Web, :controller
 
+  def session_example(conn, _params) do
+    conn = put_session(conn, :message, "Hello world!")
+    message = get_session(conn, :message)
+
+    text conn, message
+  end
+end
 ```
 
 ## セッションを使う
@@ -227,7 +258,23 @@ end
 #### File: web/controllers/session_controller.ex
 
 ```elixir
+defmodule SampleApp.SessionController do
+  ...
 
+  def create(conn, %{"signin_params" => %{"email" => email, "password" => password}}) do
+    case Repo.get_by(User, email: email) |> signin(password) do
+      {:ok, user} ->
+        conn
+        |> put_flash(:info, "User signin is success!")
+        |> put_session(:user_id, user.id)
+        |> redirect(to: static_page_path(conn, :home))
+      :error ->
+        ...
+    end
+  end
+
+  ...
+end
 ```
 
 ## サインイン状態の継続
@@ -237,13 +284,43 @@ end
 #### File: lib/plugs/check_authentication.ex
 
 ```elixir
+defmodule SampleApp.Plugs.CheckAuthentication do
+  import Plug.Conn
 
+  alias SampleApp.{Repo, User}
+
+  def init(options) do
+    options
+  end
+
+  def call(conn, _) do
+    case user_id = get_session(conn, :user_id) do
+      nil ->
+        conn
+      _ ->
+        conn
+        |> assign(:current_user, Repo.get(User, user_id))
+    end
+  end
+end
 ```
 
 #### File: web/web.ex
 
 ```elixir
+defmodule SampleApp.Web do
+  ...
 
+  def controller do
+    quote do
+      ...
+
+      plug SampleApp.Plugs.CheckAuthentication
+    end
+  end
+
+  ...
+end
 ```
 
 #### Note:
@@ -261,19 +338,40 @@ Phoenixフレームワークの方で"secret_key_base"を設定しているた�
 #### File: lib/helpers/view_helper.ex
 
 ```elixir
-
+defmodule SampleApp.Helpers.ViewHelper do
+  def current_user(conn) do
+    conn.assigns[:current_user]
+  end
+end
 ```
 
 #### File: web/web.ex
 
 ```elixir
+defmodule SampleApp.Web do
+  ...
 
+  def view do
+    quote do
+      ...
+      import SampleApp.Helpers.ViewHelper
+    end
+  end
+
+  ...
+end
 ```
 
 #### File: web/temmplates/layout/debug.html.eex
 
 ```html
-
+<div class="debug_dump">
+  <p>Controller: <%= get_controller_name @conn %></p>
+  <p>Action: <%= get_action_name @conn %></p>
+  <%= if current_user(@conn) do %>
+    <p>User (ID): <%= current_user(@conn).name %> (<%= current_user(@conn).id %>)</p>
+  <% end %>
+</div>
 ```
 
 ## リンクとレイアウトを動的に変更する
@@ -281,19 +379,67 @@ Phoenixフレームワークの方で"secret_key_base"を設定しているた�
 #### Example:
 
 ```elixir
-
+<%= if current_user(@conn) do %>
+  ログインしている時の処理...
+<% else %>
+  ログインしていない時の処理...
+<% end %>
 ```
 
 #### File: web/temmplates/layout/header.html.eex
 
 ```html
-
+<header class="header navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="logo" href="<%= page_path(@conn, :index) %>"></a>
+      <nav role="navigation">
+        <ul class="nav nav-pills pull-right">
+          <li><%= link "Home", to: static_page_path(@conn, :home) %></li>
+          <%= if current_user(@conn) do %>
+            <li class="dropdown">
+              <!-- Dropdown Menu -->
+              <a href="#" class="dropdown-toggle" id="account" data-toggle="dropdown">
+                User Menu
+                <span class="caret"></span>
+              </a>
+              <!-- Dropdown List -->
+              <ul class="dropdown-menu" aria-labelledby="account">
+                <li><%= link "Profile", to: user_path(@conn, :show, current_user(@conn)) %><li>
+                <li><%= link "Help", to: static_page_path(@conn, :help) %></li>
+                <li class="divider"></li>
+              </ul>
+              <li><%= link "Signout", to: session_path(@conn, :delete), method: :delete %></li>
+            </li>
+          <% else %>
+            <li><%= link "Signin", to: session_path(@conn, :new) %></li>
+          <% end %>
+        </ul>
+      </nav>
+    </div> <!-- container -->
+  </div> <!-- navbar-inner -->
+</header>
 ```
 
-#### File: web/static/css/custom/_header.scss
+#### ~~File: web/static/css/custom/_header.scss~~
 
 ```css
+いらなくなるかも・・・
 
+/* header */
+
+...
+
+.dropdown-delete-link {
+  color: #000000;
+  margin-left: 20px;
+}
+.dropdown-delete-li {
+  color: #000000;
+  &:hover {
+    background-color: #f5f5f5;
+  }
+}
 ```
 
 ## サインアウト
@@ -301,7 +447,20 @@ Phoenixフレームワークの方で"secret_key_base"を設定しているた�
 #### File: web/controllers/session_controller.ex
 
 ```elixir
+defmodule SampleApp.SessionController do
+  ...
 
+  alias SampleApp.User
+
+  ...
+
+  def delete(conn, _params) do
+    conn
+    |> put_flash(:info, "Signout now! See you again!!")
+    |> delete_session(:user_id)
+    |> redirect(to: static_page_path(conn, :home))
+  end
+end
 ```
 
 ## サインアップ後のサインイン
@@ -309,7 +468,23 @@ Phoenixフレームワークの方で"secret_key_base"を設定しているた�
 #### File: web/controllers/user_controller.ex
 
 ```elixir
+defmodule SampleApp.UserController do
+  ...
 
+  def create(conn, %{"user" => user_params}) do
+    changeset = User.changeset(%User{}, user_params)
+
+    case Repo.insert(changeset) do
+      {:ok, user} ->
+        conn
+        |> put_flash(:info, "User created successfully.")
+        |> put_session(:user_id, user.id)
+        |> redirect(to: static_page_path(conn, :home))
+      {:error, changeset} ->
+        render(conn, "new.html", changeset: changeset)
+    end
+  end
+end
 ```
 
 ## おわりに
