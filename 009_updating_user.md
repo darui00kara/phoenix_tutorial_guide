@@ -181,35 +181,256 @@ end
 
 ### 認証と認可の違い
 
+### そのユーザサインインしてますか？
+
 #### File: lib/plugs/signed_in_user.ex
 
 ```elixir
+defmodule SampleApp.Plugs.SignedInUser do
+  import Plug.Conn
+  import Phoenix.Controller, only: [put_flash: 3, redirect: 2]
+  import SampleApp.Router.Helpers, only: [session_path: 2]
 
+  def init(options) do
+    options
+  end
+
+  def call(conn, _) do
+    if conn.assigns[:current_user] do
+      conn
+    else
+      conn
+      |> put_flash(:info, "Please signin.")
+      |> redirect(to: session_path(conn, :new))
+      |> halt
+    end
+  end
+end
 ```
 
 #### File: web/controllers/user_controller.ex
 
 ```elixir
+defmodule SampleApp.UserController do
+  use SampleApp.Web, :controller
 
+  alias SampleApp.User
+
+  plug SampleApp.Plugs.SignedInUser
+
+  ...
+end
 ```
 
 #### File: web/controllers/user_controller.ex
 
 ```elixir
+defmodule SampleApp.UserController do
+  use SampleApp.Web, :controller
 
+  alias SampleApp.User
+
+  plug SampleApp.Plugs.SignedInUser when action in [:show, :edit, :update]
+
+  ...
+end
 ```
 
-### そのユーザサインインしてますか？
+### あなたは正しい私ですか？
 
-### あなたは私ですか？
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  use SampleApp.Web, :controller
+
+  alias SampleApp.User
+
+  plug SampleApp.Plugs.SignedInUser when action in [:show, :edit, :update]
+  plug :correct_user? when action in [:show, :edit, :update]
+
+  ...
+
+  defp correct_user?(conn, _) do
+    user = Repo.get(User, String.to_integer(conn.params["id"]))
+
+    if current_user?(conn, user) do
+      conn
+    else
+      conn
+      |> put_flash(:info, "Please signin.")
+      |> redirect(to: session_path(conn, :new))
+      |> halt
+    end
+  end
+
+  defp current_user?(conn, user) do
+    conn.assigns[:current_user] == user
+  end
+end
+```
 
 ## 全てのユーザ
 
+### Indexアクション
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  ...
+
+  def index(conn, _params) do
+    users = Repo.all(User)
+    render(conn, "index.html", users: users)
+  end
+
+  ...
+end
+```
+
+### Indexテンプレート
+
+#### File: web/templates/user/index.html.eex
+
+```html
+<h1>All users</h1>
+
+<%= if !is_empty_list?(@users) do %>
+  <ul class="users">
+    <%= for user <- @users do %>
+      <%= render "user.html", conn: @conn, user: user %>
+    <% end %>
+  </ul>
+<% end %>
+```
+
+#### File: web/templates/user/user.html.eex
+
+```html
+<li>
+  <img src="<%= gravatar_for(@user) %>" class="gravatar">
+  <%= link @user.name, to: user_path(@conn, :show, @user) %>
+</li>
+```
+
+#### File: web/views/user_view.ex
+
+```elixir
+defmodule SampleApp.UserView do
+  ...
+
+  def is_empty_list?(list) when is_list(list) do
+    list == []
+  end
+end
+```
+
+#### File: web/static/css/custom/_user.scss
+
+```css
+/* Users index */
+
+.users {
+  list-style: none;
+  margin: 0;
+  li {
+    overflow: auto;
+    padding: 10px 0;
+    border-top: 1px solid #eeeeee;
+    &:last-child {
+      border-bottom: 1px solid #eeeeee;
+    }
+  }
+}
+```
+
+#### File: web/static/css/custom/custom.scss
+
+```css
+/* custom main scss */
+
+...
+@import "user";
+```
+
 ### 一覧へのリンク
+
+#### File: web/templates/layout/header.html.eex
+
+```html
+<header class="header navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="logo" href="<%= page_path(@conn, :index) %>"></a>
+      <nav role="navigation">
+        <ul class="nav nav-pills pull-right">
+          <li><%= link "Home", to: static_page_path(@conn, :home) %></li>
+          <%= if current_user(@conn) do %>
+            <li class="dropdown">
+              <!-- Dropdown Menu -->
+              <a href="#" class="dropdown-toggle" id="account" data-toggle="dropdown">
+                User Menu
+                <span class="caret"></span>
+              </a>
+              <!-- Dropdown List -->
+              <ul class="dropdown-menu" aria-labelledby="account">
+                <li><%= link "All Users", to: user_path(@conn, :index) %><li>
+                <li><%= link "Profile", to: user_path(@conn, :show, current_user(@conn)) %><li>
+                <li><%= link "Help", to: static_page_path(@conn, :help) %></li>
+                <li class="divider"></li>
+              </ul>
+              <li><%= link "Signout", to: session_path(@conn, :delete), method: :delete %></li>
+            </li>
+          <% else %>
+            <li><%= link "Signin", to: session_path(@conn, :new) %></li>
+          <% end %>
+        </ul>
+      </nav>
+    </div> <!-- container -->
+  </div> <!-- navbar-inner -->
+</header>
+```
 
 ## ページネーション
 
 ### ページネーション
+
+#### File: mix.exs
+
+```elixir
+defmodule SampleApp.Mixfile do
+  ...
+
+  # Configuration for the OTP application.
+  #
+  # Type `mix help compile.app` for more information.
+  def application do
+    [mod: {SampleApp, []},
+     applications: [... :scrivener, :scrivener_ecto, :scrivener_html]]
+  end
+
+  ...
+
+  # Specifies your project dependencies.
+  #
+  # Type `mix help deps` for examples and options.
+  defp deps do
+    [...
+     {:scrivener, "~> 2.0"},
+     {:scrivener_ecto, "~> 1.0"},
+     {:scrivener_html, "~> 1.1"}]
+  end
+
+  ...
+end
+```
+
+#### Example:
+
+```cmd
+$ mix deps.get
+```
 
 ### ページネーションのビューとテンレプート
 
