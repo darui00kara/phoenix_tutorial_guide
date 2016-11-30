@@ -247,7 +247,7 @@ defmodule SampleApp.UserController do
   alias SampleApp.User
 
   plug SampleApp.Plugs.SignedInUser when action in [:show, :edit, :update]
-  plug :correct_user? when action in [:show, :edit, :update]
+  plug :correct_user? when action in [:edit, :update]
 
   ...
 
@@ -278,6 +278,10 @@ end
 
 ```elixir
 defmodule SampleApp.UserController do
+  ...
+
+  plug SampleApp.Plugs.SignedInUser when action in [:show, :edit, :update, :index]
+
   ...
 
   def index(conn, _params) do
@@ -394,7 +398,7 @@ end
 
 ## ページネーション
 
-### ページネーション
+### ページネーションの準備
 
 #### File: mix.exs
 
@@ -417,9 +421,9 @@ defmodule SampleApp.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [...
-     {:scrivener, "~> 2.0"},
-     {:scrivener_ecto, "~> 1.0"},
-     {:scrivener_html, "~> 1.1"}]
+     {:scrivener, "~> 2.1.1"},
+     {:scrivener_ecto, "~> 1.0.3"},
+     {:scrivener_html, "~> 1.3.3"}]
   end
 
   ...
@@ -432,9 +436,87 @@ end
 $ mix deps.get
 ```
 
+#### File: config/config.exs
+
+```elixir
+use Mix.Config
+
+...
+
+# Configures Scrivener
+config :scrivener_html,
+  routes_helper: SampleApp.Router.Helpers
+
+import_config "#{Mix.env}.exs"
+```
+
+#### File: lib/sample_app/repo.ex
+
+```elixir
+defmodule SampleApp.Repo do
+  ...
+  use Scrivener, page_size: 30
+end
+```
+
+### Indexアクションにページネーションを追加
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  ...
+
+  def index(conn, params) do
+    users = from(u in User, order_by: [asc: :name])
+            |> Repo.paginate(params)
+
+    if users do
+      render(conn, "index.html", users: users)
+    else
+      conn
+      |> put_flash(:error, "Invalid page number!!")
+      |> render("index.html", users: [])
+    end
+  end
+
+  ...
+end
+```
+
 ### ページネーションのビューとテンレプート
 
-### ページネートできますか？
+#### File: web/views/pagination_view.ex
+
+```elixir
+defmodule SampleApp.PaginationView do
+  use SampleApp.Web, :view
+
+  import Scrivener.HTML
+end
+```
+
+#### File: web/templates/pagination/pagination.html.eex
+
+```html
+<%= pagination_links @conn, @pages, view_style: :bootstrap %>
+```
+
+#### File: web/templates/user/index.html.eex
+
+```html
+<h1>All users</h1>
+
+<%= if !is_empty_list?(@users.entries) do %>
+  <%= render SampleApp.PaginationView, "pagination.html", conn: @conn, pages: @users %>
+  <ul class="users">
+    <%= for user <- @users.entries do %>
+      <%= render "user.html", conn: @conn, user: user %>
+    <% end %>
+  </ul>
+  <%= render SampleApp.PaginationView, "pagination.html", conn: @conn, pages: @users %>
+<% end %>
+```
 
 ## ユーザの削除
 
