@@ -522,7 +522,50 @@ end
 
 ### Deleteアクション
 
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  ...
+
+  plug SampleApp.Plugs.SignedInUser when action in [:show, :edit, :update, :index, :delete]
+  plug :correct_user? when action in [:edit, :update, :delete]
+
+  ...
+
+  def delete(conn, %{"id" => id}) do
+    Repo.get(User, id) |> Repo.delete
+
+    conn
+    |> put_flash(:info, "User deleted successfully.")
+    |> delete_session(:user_id)
+    |> redirect(to: static_page_path(conn, :home))
+  end
+
+  ...
+end
+```
+
 ### Deleteのリンク
+
+#### File: web/templates/user/show.html.eex
+
+```html
+<div class="row">
+  <aside class="col-md-4">
+    <section>
+      ...
+    </section>
+    <section>
+      <%= link "Edit", to: user_path(@conn, :edit, @user), class: "btn btn-default btn-xs" %>
+      <%= button "Delete", to: user_path(@conn, :delete, @user),
+                           method: :delete,
+                           onclick: "return confirm(\"Are you sure?\");",
+                           class: "btn btn-danger btn-xs" %>
+    </section>
+  </aside>
+</div>
+```
 
 ## おわりに
 
