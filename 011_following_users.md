@@ -231,6 +231,123 @@ end
 
 ## フォローとフォロワー
 
+#### File: web/router.ex
+
+```elixir
+defmodule SampleApp.Router do
+  ...
+
+  scope "/", SampleApp do
+    pipe_through :browser # Use the default browser stack
+
+    ...
+    get "/user/:id/following", UserController, :following
+    get "/user/:id/followers", UserController, :followers
+  end
+
+  ...
+end
+```
+
+```elixir
+user_path  GET     /user/:id/following  SampleApp.UserController :following
+user_path  GET     /user/:id/followers  SampleApp.UserController :followers
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  ...
+
+  def show(conn, %{"id" => id} = params) do
+    user  = Repo.get(User, id)
+            |> Repo.preload(:relationships)
+            |> Repo.preload(:reverse_relationships)
+    ...
+  end
+
+  ...
+end
+```
+
+#### File: web/templates/user/show.html.eex
+
+```elixir
+<div class="row">
+  <aside class="col-md-4">
+    <section>
+      ...
+    </section>
+    <section>
+      <%= render SampleApp.SharedView, "stats.html",
+                                       conn: @conn,
+                                       user: @user %>
+    </section>
+    <%= if current_user?(@conn, @user) do %>
+      <section>
+        ...
+      </section>
+    <% end %>
+    ...
+  </aside>
+
+  <div class="col-md-8">
+    ...
+  </div>
+</div>
+```
+
+#### File: web/templates/shared/stats.html.eex
+
+```html
+<div class="stats">
+  <a href="<%= user_path(@conn, :following, @user) %>">
+    <strong id="following" class="stat">
+      (<%= Enum.count(@user.followed_users) %>)
+    </strong>
+    following
+  </a>
+  <a href="<%= user_path(@conn, :followers, @user) %>">
+    <strong id="followers" class="stat">
+      (<%= Enum.count(@user.followers) %>)
+    </strong>
+    followers
+  </a>
+</div>
+```
+
+#### File: web/static/css/custom/_user.scss
+
+```css
+/* Users index */
+
+...
+
+/* following and followers */
+
+.stats {
+  overflow: auto;
+  a {
+    float: left;
+    padding: 0 10px;
+    border-left: 1px solid #eeeeee;
+    color: gray;
+    &:first-child {
+      padding-left: 0;
+      border: 0;
+    }
+    &:hover {
+      text-decoration: none;
+      color: #3677a3;
+    }
+  }
+  strong {
+    display: block;
+  }
+}
+```
+
 ### フォローとフォロワーは何人ですか？
 
 ### フォローとフォロワーの一覧
