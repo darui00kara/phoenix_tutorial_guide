@@ -348,6 +348,251 @@ end
 }
 ```
 
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  ...
+
+  def following(conn, %{"id" => id} = params) do
+    user    = Repo.get(User, id)
+              |> Repo.preload(:relationships)
+              |> Repo.preload(:reverse_relationships)
+    id_list = extract_follow_ids(user.followed_users, :followed_id)
+    users   = from(u in SampleApp.User,
+                where: u.id in ^id_list,
+                  order_by: [asc: :name])
+              |> Repo.paginate(params)
+
+    if users do
+      render(conn, "following.html", user: user, users: users)
+    else
+      conn
+      |> put_flash(:error, "Invalid page number!!")
+      |> render("following.html", user: user, users: [])
+    end
+  end
+
+  def followers(conn, %{"id" => id} = params) do
+    user    = Repo.get(User, id)
+              |> Repo.preload(:relationships)
+              |> Repo.preload(:reverse_relationships)
+    id_list = extract_follow_ids(user.followers, :follower_id)
+    users   = from(u in SampleApp.User,
+                where: u.id in ^id_list,
+                  order_by: [asc: :name])
+              |> Repo.paginate(params)
+
+    if users do
+      render(conn, "followers.html", user: user, users: users)
+    else
+      conn
+      |> put_flash(:error, "Invalid page number!!")
+      |> render("followers.html", user: user, users: [])
+    end
+  end
+
+  ...
+
+  defp extract_follow_ids(follow_users, key) do
+    Enum.reduce(follow_users, [], fn(follow_user, acc) ->
+      case Map.get(follow_user, key) do
+        nil -> acc
+         id -> [id | acc]
+      end
+    end) |> Enum.reverse
+  end
+end
+```
+
+#### File: web/templates/user/show_follow.html.eex
+
+```elixir
+<div class="row">
+  <aside class="col-md-4">
+    <section>
+      <%= render SampleApp.SharedView, "user_info.html",
+                                       conn: @conn,
+                                       user: @user %>
+    </section>
+    <section>
+      <%= render SampleApp.SharedView, "stats.html",
+                                       conn: @conn,
+                                       user: @user %>
+      <%= unless is_empty_list?(@users.entries) do %>
+        <div class="user_avatars">
+          <%= for follow_user <- @users.entries do %>
+            <a href="<%= user_path(@conn, :show, follow_user) %>">
+              <img src="<%= gravatar_for(follow_user) %>" class="gravatar">
+            </a>
+          <% end %>
+        </div>
+      <% end %>
+    </section>
+  </aside>
+
+  <div class="col-md-8">
+    <h3>Users</h3>
+    <%= unless is_empty_list?(@users.entries) do %>
+      <ul class="users">
+        <%= for follow_user <- @users.entries do %>
+          <%= render "user.html", conn: @conn, user: follow_user %>
+        <% end %>
+      </ul>
+
+      
+      <%= Scrivener.HTML.pagination_links @conn, @users, [@user],
+                                          view_style: :bootstrap,
+                                          path: @path,
+                                          action: @action %>     
+    <% end %>
+  </div>
+</div>
+```
+
+#### File: web/templates/user/following.html.eex
+
+```html
+<h1>Followed users</h1>
+
+<%= render  "show_follow.html",
+      action: :following, path: &user_path/4,
+      conn: @conn, user: @user, users: @users %>
+```
+
+#### File: web/templates/user/followers.html.eex
+
+```html
+<h1>Follower users</h1>
+
+<%= render  "show_follow.html",
+      action: :followers, path: &user_path/4,
+      conn: @conn, user: @user, users: @users %>
+```
+
+#### File: web/router.ex
+
+```elixir
+defmodule SampleApp.Router do
+  ...
+
+  scope "/", SampleApp do
+    pipe_through :browser # Use the default browser stack
+
+    ...
+    resources "/relationship", RelationshipController, only: [:create, :delete]
+  end
+
+  ...
+end
+```
+
+#### File: web/templates/user/show.html.eex
+
+```elixir
+<div class="row">
+  <aside class="col-md-4">
+    ...
+  </aside>
+
+  <div class="col-md-8">
+    <%= render SampleApp.RelationshipView, "form.html", conn: @conn, user: @user %>
+    ...
+  </div>
+</div>
+```
+
+#### Directory: web/templates/relationship
+
+#### File: web/templates/relationship/form.html.eex
+
+```elixir
+<%= unless current_user?(@conn, @user) do %>
+  <div id="follow_form">
+  <%= if following?(@conn, @user) do %>
+    <%= form_tag(relationship_path(@conn, :delete, current_user(@conn)), method: :delete) %>
+      <input type="hidden" name="unfollow_id" value="<%= @user.id %>">
+      <%= submit "Unfollow", class: "btn btn-default" %>
+    </form>
+  <% else %>
+    <%= form_tag(relationship_path(@conn, :create), method: :post) %>
+      <input type="hidden" name="follow_id" value="<%= @user.id %>">
+      <%= submit "Follow", class: "btn btn-primary" %>
+    </form>
+  <% end %>
+  </div>
+<% end %>
+```
+
+#### File: web/views/relationship_view.ex
+
+```elixir
+defmodule SampleApp.RelationshipView do
+  use SampleApp.Web, :view
+
+  alias SampleApp.User
+  alias SampleApp.Helpers.{Following, ViewHelper}
+
+  def following?(conn, %User{id: showing_user_id}) do
+    current_user = ViewHelper.current_user(conn)
+    Following.following?(current_user.id, showing_user_id)
+  end
+end
+```
+
+#### File: web/controllers/relationship_controller.ex
+
+```elixir
+defmodule SampleApp.RelationshipController do
+  use SampleApp.Web, :controller
+
+  alias SampleApp.Helpers.Following
+
+  plug SampleApp.Plugs.SignedInUser
+
+  def create(conn, %{"follow_id" => follow_id}) do
+    Following.follow!(conn.assigns[:current_user].id, follow_id)
+
+    conn
+    |> put_flash(:info, "Follow successfully!")
+    |> redirect(to: user_path(conn, :show, follow_id))
+  end
+
+  def delete(conn, %{"unfollow_id" => unfollow_id}) do
+    Following.unfollow!(conn.assigns[:current_user].id, unfollow_id)
+
+    conn
+    |> put_flash(:info, "Unfollow successfully!")
+    |> redirect(to: user_path(conn, :show, unfollow_id))
+  end
+end
+```
+
+#### File: web/controllers/user_controller.ex
+
+```elixir
+defmodule SampleApp.UserController do
+  ...
+
+  def show(conn, %{"id" => id} = params) do
+    ...
+    id_list = extract_follow_ids(user.followed_users, :followed_id)
+    posts = from(m in Micropost,
+                   where: m.user_id == ^user.id or m.user_id in ^id_list,
+                     order_by: [desc: :inserted_at])
+            |> Repo.paginate(params)
+
+    if posts do
+      ...
+    else
+      ...
+    end
+  end
+
+  ...
+end
+```
+
 ### フォローとフォロワーは何人ですか？
 
 ### フォローとフォロワーの一覧
